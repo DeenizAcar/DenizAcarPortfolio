@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAULT — personal project archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0c;
+  --bg-elev: #131317;
+  --bg-elev-2: #1a1a20;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.16);
+  --text: #e8e6e1;
+  --text-dim: #a09c95;
+  --text-faint: #5e5a54;
+  --accent: #e63946;
+  --accent-dim: rgba(230, 57, 70, 0.15);
+  --success: #06d6a0;
+  --warning: #f4a261;
+  --serif: 'Fraunces', Georgia, serif;
+  --sans: 'Manrope', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 14px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+button, input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+button { cursor: pointer; background: none; border: none; }
+a { color: var(--text); text-decoration: none; }
+a:hover { color: var(--accent); }
+
+/* ---------- LAYOUT ---------- */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.brand {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.brand-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.count-pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+}
+.header-spacer { flex: 1; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
+.search-box {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 6px 12px;
+  background: var(--bg-elev);
+  width: 280px;
+  transition: border-color 0.15s;
+}
+.search-box:focus-within { border-color: var(--border-strong); }
+.search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+.search-box .icon { color: var(--text-faint); margin-right: 8px; font-size: 12px; }
+
+.btn {
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { border-color: var(--border-strong); background: var(--bg-elev-2); }
+.btn-accent {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.btn-accent:hover { background: #d62836; border-color: #d62836; }
+.btn-ghost { background: transparent; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+.main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.sidebar {
+  width: 240px;
+  border-right: 1px solid var(--border);
+  padding: 24px 20px;
+  overflow-y: auto;
+  background: var(--bg);
+}
+.sidebar h3 {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+  margin-top: 24px;
+}
+.sidebar h3:first-child { margin-top: 0; }
+.filter-list { display: flex; flex-direction: column; gap: 2px; }
+.filter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: all 0.1s;
+}
+.filter-item:hover { background: var(--bg-elev); color: var(--text); }
+.filter-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.filter-item .count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  min-width: 0;
+}
+.content-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.content-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 32px;
+  font-weight: 400;
+}
+.content-meta {
+  font-family: var(--mono);
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+/* ---------- GRID ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
+}
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-strong);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+}
+.card-cover {
+  aspect-ratio: 3/2;
+  overflow: hidden;
+  background: var(--bg-elev-2);
+  position: relative;
+}
+.card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s;
+}
+.card:hover .card-cover img { transform: scale(1.05); }
+.card-status-dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(10,10,12,0.6);
+}
+.card-status-dot.broken { background: var(--accent); }
+.card-status-dot.wip { background: var(--warning); }
+.card-status-dot.abandoned { background: var(--text-faint); }
+.card-status-dot.idea { background: #9b5de5; }
+.card-pin {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--accent);
+  background: rgba(10,10,12,0.7);
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.card-offline-tag {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  background: rgba(10,10,12,0.85);
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.card.offline .card-cover img { filter: grayscale(0.7) brightness(0.6); }
+.card-body {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.card-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.2;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: auto;
+}
+.card-cat-badge {
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 3px;
+}
+
+/* ---------- DETAIL VIEW ---------- */
+.detail {
+  max-width: 980px;
+  margin: 0 auto;
+}
+.detail-back {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.detail-back:hover { color: var(--accent); }
+.detail-hero {
+  aspect-ratio: 21/9;
+  background: var(--bg-elev);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: 32px;
+  border: 1px solid var(--border);
+}
+.detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+.detail-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 56px;
+  font-weight: 300;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+.detail-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 24px;
+}
+.detail-description {
+  font-size: 16px;
+  color: var(--text);
+  line-height: 1.7;
+  margin-bottom: 32px;
+  max-width: 720px;
+}
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+}
+.tag.tag-removable {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.tag.tag-removable:hover { color: var(--accent); border-color: var(--accent); }
+
+.detail-section {
+  margin: 40px 0;
+}
+.detail-section h2 {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-faint);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.screenshots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.screenshots img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+.screenshots img:hover { transform: scale(1.02); }
+
+.markdown-body {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  margin: 1.2em 0 0.4em;
+}
+.markdown-body h1 { font-size: 28px; }
+.markdown-body h2 { font-size: 22px; }
+.markdown-body h3 { font-size: 18px; }
+.markdown-body p { margin-bottom: 1em; }
+.markdown-body code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-elev);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+.markdown-body pre {
+  background: var(--bg-elev);
+  padding: 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  overflow-x: auto;
+  margin-bottom: 1em;
+}
+.markdown-body pre code { background: none; padding: 0; }
+.markdown-body a { color: var(--accent); border-bottom: 1px solid var(--border); }
+.markdown-body ul, .markdown-body ol { padding-left: 1.4em; margin-bottom: 1em; }
+.markdown-body img { max-width: 100%; border-radius: var(--r-md); }
+
+/* ---------- NOTES ---------- */
+.notes-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px; }
+.note {
+  border-left: 2px solid var(--border);
+  padding: 4px 0 4px 16px;
+}
+.note:hover { border-left-color: var(--accent); }
+.note-date {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+.note-text { color: var(--text-dim); font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+.note-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.note-input textarea {
+  flex: 1;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  outline: none;
+  resize: vertical;
+  min-height: 60px;
+  font-size: 13px;
+}
+.note-input textarea:focus { border-color: var(--border-strong); }
+
+/* ---------- MODAL ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modal {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  width: 100%;
+  max-width: 720px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-wide { max-width: 980px; }
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-title {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  font-weight: 400;
+}
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.modal-footer-actions { display: flex; gap: 8px; }
+.modal-close {
+  font-size: 22px;
+  color: var(--text-faint);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.modal-close:hover { background: var(--bg-elev-2); color: var(--text); }
+
+/* ---------- FORMS ---------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-full { grid-column: span 2; }
+.field label {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+.field input, .field textarea, .field select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  font-size: 13px;
+}
+.field input:focus, .field textarea:focus, .field select:focus {
+  border-color: var(--border-strong);
+}
+.field textarea { resize: vertical; min-height: 80px; }
+.field-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.field-hint.error { color: var(--accent); }
+.dropzone {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.dropzone:hover, .dropzone.dragover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.dropzone .uploaded-thumb {
+  max-width: 100%;
+  max-height: 120px;
+  border-radius: var(--r-sm);
+  margin-bottom: 8px;
+}
+
+.tag-input-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+  min-height: 40px;
+}
+.tag-input-wrapper:focus-within { border-color: var(--border-strong); }
+.tag-input-wrapper input {
+  flex: 1;
+  min-width: 80px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+}
+
+/* ---------- IMPORT WIZARD ---------- */
+.wizard-steps {
+  display: flex;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.wizard-step.active { color: var(--accent); }
+.wizard-step.done { color: var(--text-dim); }
+
+.candidate {
+  display: grid;
+  grid-template-columns: auto 80px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin-bottom: 8px;
+  background: var(--bg);
+  transition: border-color 0.15s;
+}
+.candidate:hover { border-color: var(--border-strong); }
+.candidate.skipped { opacity: 0.4; }
+.candidate-checkbox { width: 18px; height: 18px; cursor: pointer; }
+.candidate-icon {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 28px;
+  color: var(--text-faint);
+  text-align: center;
+  background: var(--bg-elev);
+  border-radius: var(--r-sm);
+  padding: 12px 0;
+}
+.candidate-info { min-width: 0; }
+.candidate-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.candidate-path {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 6px;
+}
+.candidate-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.candidate-edit input, .candidate-edit select {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* ---------- TOAST ---------- */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  font-size: 13px;
+  min-width: 240px;
+  animation: slideUp 0.2s ease;
+}
+.toast.error { border-left: 3px solid var(--accent); }
+.toast.success { border-left: 3px solid var(--success); }
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ---------- EMPTY ---------- */
+.empty-state {
+  text-align: center;
+  padding: 80px 40px;
+  color: var(--text-dim);
+}
+.empty-state h2 {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 28px;
+  font-weight: 300;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.empty-state p { margin-bottom: 20px; max-width: 400px; margin-left: auto; margin-right: auto; }
+
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .sidebar { display: none; }
+  .header { padding: 16px; }
+  .search-box { width: auto; flex: 1; }
+  .content { padding: 20px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .field-full { grid-column: span 1; }
+  .detail-title { font-size: 36px; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="header">
+    <div class="brand" onclick="state.view='grid'; render();">
+      VAULT<span class="brand-dot"></span>
+    </div>
+    <div class="count-pill" id="count-pill">— PROJECTS</div>
+    <div class="header-spacer"></div>
+    <div class="header-actions">
+      <div class="search-box">
+        <span class="icon">⌕</span>
+        <input id="search-input" placeholder="search projects, notes, tech..." />
+      </div>
+      <button class="btn" onclick="openImportWizard()">Import</button>
+      <button class="btn btn-accent" onclick="openAddModal()">+ Add</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+// =========================================================================
+// STATE
+// =========================================================================
+const state = {
+  view: 'grid',          // 'grid' | 'detail'
+  detailId: null,
+  projects: [],
+  facets: { tech: {}, years: [] },
+  filters: {
+    category: null,
+    status: null,
+    year: null,
+    tech: null,
+    search: '',
+    include_archived: false,
+  },
+  loading: false,
+};
+
+const CATEGORIES = ['web', 'game', 'school', 'tool', 'jam', 'art', 'other'];
+const STATUSES = ['working', 'broken', 'wip', 'finished', 'abandoned', 'idea'];
+
+// =========================================================================
+// API
+// =========================================================================
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+    body: opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)
+      ? JSON.stringify(opts.body) : opts.body,
+  });
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = j.detail || j.message || msg; } catch (e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// =========================================================================
+// TOAST
+// =========================================================================
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// =========================================================================
+// HELPERS
+// =========================================================================
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function coverUrl(project) {
+  if (project.cover_image) return `/api/thumbnails/${encodeURIComponent(project.cover_image)}`;
+  return null;
+}
+
+function coverFallback(project) {
+  const letter = (project.title || '?')[0].toUpperCase();
+  const colors = ['#e63946', '#f4a261', '#2a9d8f', '#264653', '#9b5de5', '#00bbf9', '#06d6a0', '#ef476f'];
+  const color = colors[Math.abs(hashCode(project.title || '')) % colors.length];
+  return `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="${color}"/><text x="300" y="240" font-family="Georgia" font-size="220" font-style="italic" fill="white" text-anchor="middle" opacity="0.9">${letter}</text></svg>`
+  )}`;
+}
+
+function hashCode(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);
+  return h;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch (e) { return iso; }
+}
+
+function fmtRelative(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
+    return fmtDate(iso);
+  } catch (e) { return iso; }
+}
+
+// =========================================================================
+// DATA
+// =========================================================================
+async function loadProjects() {
+  state.loading = true;
+  render();
+  try {
+    const params = new URLSearchParams();
+    Object.entries(state.filters).forEach(([k, v]) => {
+      if (v !== null && v !== '' && v !== false) params.set(k, v);
+    });
+    const data = await api(`/api/projects?${params}`);
+    state.projects = data.items;
+    state.facets = data.facets;
+  } catch (e) {
+    toast(`Failed to load: ${e.message}`, 'error');
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+async function loadProject(id) {
+  state.loading = true;
+  render();
+  try {
+    const project = await api(`/api/projects/${id}`);
+    state.detailProject = project;
+    state.detailId = id;
+    state.view = 'detail';
+  } catch (e) {
+    toast(`Failed to load project: ${e.message}`, 'error');
+    state.view = 'grid';
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+// =========================================================================
+// RENDER
+// =========================================================================
+function render() {
+  document.getElementById('count-pill').textContent =
+    `${state.projects.length.toString().padStart(3, '0')} PROJECTS`;
+  renderSidebar();
+  if (state.view === 'detail' && state.detailProject) {
+    renderDetail();
+  } else {
+    renderGrid();
+  }
+}
+
+function renderSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const f = state.filters;
+
+  const yearItems = state.facets.years.map(y => `
+    <div class="filter-item ${f.year == y.year ? 'active' : ''}" onclick="setFilter('year', ${f.year == y.year ? null : y.year})">
+      <span>${y.year}</span><span class="count">${y.count}</span>
+    </div>`).join('');
+
+  const techItems = Object.entries(state.facets.tech)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 30)
+    .map(([t, c]) => `
+      <div class="filter-item ${f.tech === t ? 'active' : ''}" onclick="setFilter('tech', ${f.tech === t ? null : JSON.stringify(t)})">
+        <span>${escapeHtml(t)}</span><span class="count">${c}</span>
+      </div>`).join('');
+
+  const catItems = CATEGORIES.map(c => `
+    <div class="filter-item ${f.category === c ? 'active' : ''}" onclick="setFilter('category', ${f.category === c ? null : JSON.stringify(c)})">
+      <span>${c}</span>
+    </div>`).join('');
+
+  const statusItems = STATUSES.map(s => `
+    <div class="filter-item ${f.status === s ? 'active' : ''}" onclick="setFilter('status', ${f.status === s ? null : JSON.stringify(s)})">
+      <span>${s}</span>
+    </div>`).join('');
+
+  sidebar.innerHTML = `
+    <h3>Category</h3>
+    <div class="filter-list">${catItems}</div>
+    <h3>Status</h3>
+    <div class="filter-list">${statusItems}</div>
+    <h3>Year</h3>
+    <div class="filter-list">${yearItems || '<div class="filter-item" style="color:var(--text-faint)">no projects yet</div>'}</div>
+    <h3>Tech</h3>
+    <div class="filter-list">${techItems || '<div class="filter-item" style="color:var(--text-faint)">no tags yet</div>'}</div>
+    <h3>View</h3>
+    <div class="filter-list">
+      <div class="filter-item ${f.include_archived ? 'active' : ''}" onclick="setFilter('include_archived', ${!f.include_archived})">
+        <span>show archived</span>
+      </div>
+    </div>
+  `;
+}
+
+function setFilter(key, value) {
+  state.filters[key] = value;
+  loadProjects();
+}
+
+function renderGrid() {
+  const content = document.getElementById('content');
+
+  if (state.loading) {
+    content.innerHTML = '<div class="loading"><span class="spinner"></span><br>Loading…</div>';
+    return;
+  }
+
+  if (state.projects.length === 0) {
+    const hasFilters = Object.values(state.filters).some(v => v && v !== false);
+    content.innerHTML = `
+      <div class="empty-state">
+        <h2>${hasFilters ? 'No matches.' : 'Your vault is empty.'}</h2>
+        <p>${hasFilters
+          ? 'Try clearing filters or broadening your search.'
+          : 'Add your first project, or import a folder of past work — Vault will scan it for projects.'}</p>
+        ${hasFilters
+          ? '<button class="btn" onclick="clearFilters()">Clear filters</button>'
+          : '<button class="btn btn-accent" onclick="openAddModal()">+ Add project</button> <button class="btn" onclick="openImportWizard()">Import folder</button>'}
+      </div>`;
+    return;
+  }
+
+  const cards = state.projects.map(p => {
+    const offline = !p.online;
+    const offlineBadge = offline
+      ? `<div class="card-offline-tag">offline${p.local_volume_label ? ' — ' + escapeHtml(p.local_volume_label) : ''}</div>`
+      : '';
+    const pinBadge = p.is_pinned ? '<div class="card-pin">pinned</div>' : '';
+    const cover = coverUrl(p) || coverFallback(p);
+    return `
+      <div class="card ${offline ? 'offline' : ''}" onclick="loadProject(${p.id})">
+        <div class="card-cover">
+          <img src="${cover}" onerror="this.src='${coverFallback(p)}'" alt="">
+          <div class="card-status-dot ${p.status}"></div>
+          ${pinBadge}
+          ${offlineBadge}
+        </div>
+        <div class="card-body">
+          <div class="card-title">${escapeHtml(p.title)}</div>
+          <div class="card-meta">
+            <span>${p.year || '—'}</span>
+            <span class="card-cat-badge">${p.category}</span>
+            <span>${p.status}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const hasSearch = state.filters.search;
+  content.innerHTML = `
+    <div class="content-header">
+      <div>
+        <div class="content-title">${hasSearch ? `“${escapeHtml(state.filters.search)}”` : 'All projects'}</div>
+        <div class="content-meta">${state.projects.length} entr${state.projects.length === 1 ? 'y' : 'ies'}</div>
+      </div>
+    </div>
+    <div class="grid">${cards}</div>
+  `;
+}
+
+function clearFilters() {
+  state.filters = { category: null, status: null, year: null, tech: null, search: '', include_archived: false };
+  document.getElementById('search-input').value = '';
+  loadProjects();
+}
+
+// =========================================================================
+// DETAIL VIEW
+// =========================================================================
+function renderDetail() {
+  const content = document.getElementById('content');
+  const p = state.detailProject;
+  if (!p) { content.innerHTML = '<div class="loading">Loading…</div>'; return; }
+
+  const cover = coverUrl(p) || coverFallback(p);
+  const techTags = (p.tech_stack || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+  const screenshots = (p.screenshots || []).map(s => `
+    <img src="/api/thumbnails/${encodeURIComponent(s)}" onclick="window.open(this.src)" alt="">`).join('');
+
+  const actions = (p.resume_actions || []).map(a => `
+    <button class="btn ${a.primary ? 'btn-accent' : ''}" ${a.disabled ? 'disabled style="opacity:0.5;cursor:not-allowed"' : ''}
+      onclick="resumeAction(${p.id}, '${a.key}')">${escapeHtml(a.label)}</button>`).join('');
+
+  const notes = (p.notes || []).slice().reverse().map(n => `
+    <div class="note">
+      <div class="note-date">${fmtRelative(n.date)}</div>
+      <div class="note-text">${escapeHtml(n.text)}</div>
+    </div>`).join('');
+
+  const longDesc = p.long_description
+    ? `<div class="markdown-body">${marked.parse(p.long_description)}</div>`
+    : '<p style="color:var(--text-faint);font-style:italic;">No long description yet. Edit to add a case-study or README.</p>';
+
+  const sourceLinks = [
+    p.github_url && `<a href="${p.github_url}" target="_blank">GitHub ↗</a>`,
+    p.itch_url && `<a href="${p.itch_url}" target="_blank">itch.io ↗</a>`,
+    p.live_url && `<a href="${p.live_url}" target="_blank">Live ↗</a>`,
+    p.local_path && `<span style="color:var(--text-dim);font-family:var(--mono);font-size:11px;">${escapeHtml(p.local_path)}${p.local_volume_label ? ' (' + escapeHtml(p.local_volume_label) + ')' : ''}</span>`,
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+  content.innerHTML = `
+    <div class="detail">
+      <a class="detail-back" onclick="state.view='grid'; render();">← Back to vault</a>
+      <div class="detail-hero">
+        <img src="${cover}" onerror="this.src='${coverFallback(p)}'" alt="">
+      </div>
+      <h1 class="detail-title">${escapeHtml(p.title)}</h1>
+      <div class="detail-meta-row">
+        <span>${p.year || '—'}</span>
+        <span>· ${p.category}</span>
+        <span>· ${p.status}</span>
+        ${p.last_opened_at ? `<span>· last opened ${fmtRelative(p.last_opened_at)}</span>` : ''}
+        <span>· created ${fmtDate(p.created_at)}</span>
+      </div>
+      ${p.description ? `<p class="detail-description">${escapeHtml(p.description)}</p>` : ''}
+
+      ${techTags ? `<div class="tag-row">${techTags}</div>` : ''}
+
+      <div class="detail-section">
+        <h2>Resume</h2>
+        ${actions ? `<div class="action-row">${actions}</div>`
+          : '<p style="color:var(--text-faint)">No resume targets configured. Edit project to add a local path or URL.</p>'}
+        ${sourceLinks ? `<div style="margin-top:14px;font-size:13px;">${sourceLinks}</div>` : ''}
+      </div>
+
+      ${screenshots ? `<div class="detail-section"><h2>Screenshots</h2><div class="screenshots">${screenshots}</div></div>` : ''}
+
+      <div class="detail-section">
+        <h2>Long description</h2>
+        ${longDesc}
+      </div>
+
+      <div class="detail-section">
+        <h2>Notes</h2>
+        ${notes ? `<div class="notes-list">${notes}</div>` : '<p style="color:var(--text-faint)">No notes yet — add a devlog entry below.</p>'}
+        <div class="note-input">
+          <textarea id="new-note-text" placeholder="add a note — bug found, idea, decision, blocker…"></textarea>
+          <button class="btn btn-accent" onclick="addNote(${p.id})">Save note</button>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <h2>Manage</h2>
+        <div class="action-row">
+          <button class="btn" onclick="openEditModal(${p.id})">Edit</button>
+          <button class="btn" onclick="togglePin(${p.id})">${p.is_pinned ? 'Unpin' : 'Pin to top'}</button>
+          <button class="btn" onclick="window.location='/api/projects/${p.id}/export'">Export ZIP</button>
+          <button class="btn" onclick="archiveProject(${p.id})" style="margin-left:auto;color:var(--accent)">Archive</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function resumeAction(id, action) {
+  try {
+    await api(`/api/resume/${id}`, { method: 'POST', body: { action } });
+    toast(`Opened — ${action}`, 'success');
+    loadProject(id);
+  } catch (e) {
+    toast(`Resume failed: ${e.message}`, 'error');
+  }
+}
+
+async function addNote(id) {
+  const ta = document.getElementById('new-note-text');
+  const text = ta.value.trim();
+  if (!text) return;
+  try {
+    await api(`/api/projects/${id}/notes`, { method: 'POST', body: { text } });
+    ta.value = '';
+    loadProject(id);
+  } catch (e) { toast(`Failed: ${e.message}`, 'error'); }
+}
+
+async function togglePin(id) {
+  try {
+    await api(`/api/projects/${id}`, { method: 'PATCH', body: { is_pinned: !state.detailProject.is_pinned } });
+    loadProject(id);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function archiveProject(id) {
+  if (!confirm('Archive this project? It will be hidden from the default view but can be restored.')) return;
+  try {
+    await api(`/api/projects/${id}`, { method: 'DELETE' });
+    toast('Archived', 'success');
+    state.view = 'grid';
+    loadProjects();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// =========================================================================
+// MODALS
+// =========================================================================
+function closeModal() {
+  document.getElementById('modal-root').innerHTML = '';
+}
+
+function openModal(html) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="modal-overlay" onclick="if(event.target===this)closeModal()">${html}</div>`;
+}
+
+// ----- Add / Edit modal -----
+function openAddModal() { renderProjectForm(null); }
+async function openEditModal(id) {
+  try {
+    const p = await api(`/api/projects/${id}`);
+    renderProjectForm(p);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderProjectForm(project) {
+  const p = project || {};
+  const isEdit = !!project;
+  const tech = (p.tech_stack || []).slice();
+  const screenshots = (p.screenshots || []).slice();
+  let cover = p.cover_image || null;
+
+  const html = `
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <div class="modal-title">${isEdit ? 'Edit project' : 'Add project'}</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field field-full">
+            <label>Title *</label>
+            <input id="f-title" value="${escapeHtml(p.title || '')}" placeholder="Project title">
+          </div>
+          <div class="field">
+            <label>Year</label>
+            <input id="f-year" type="number" value="${p.year || ''}" placeholder="${new Date().getFullYear()}">
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select id="f-category">
+              ${CATEGORIES.map(c => `<option value="${c}" ${p.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="f-status">
+              ${STATUSES.map(s => `<option value="${s}" ${p.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Tech stack</label>
+            <div class="tag-input-wrapper" id="f-tech-wrapper">
+              <input id="f-tech-input" placeholder="add tag, press enter">
+            </div>
+          </div>
+          <div class="field field-full">
+            <label>Short description</label>
+            <textarea id="f-description" placeholder="One paragraph">${escapeHtml(p.description || '')}</textarea>
+          </div>
+          <div class="field field-full">
+            <label>Long description (markdown — optional case study)</label>
+            <textarea id="f-long" rows="6" placeholder="# Project notes...">${escapeHtml(p.long_description || '')}</textarea>
+          </div>
+
+          <div class="field">
+            <label>Local path</label>
+            <input id="f-local" value="${escapeHtml(p.local_path || '')}" placeholder="D:/projects/my-game">
+          </div>
+          <div class="field">
+            <label>GitHub URL</label>
+            <div style="display:flex;gap:6px">
+              <input id="f-github" value="${escapeHtml(p.github_url || '')}" placeholder="https://github.com/owner/repo">
+              <button class="btn btn-sm" onclick="enrichGithub()" type="button">Fetch</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>itch.io URL</label>
+            <div style="display:flex;gap:6px">
+              <input id="f-itch" value="${escapeHtml(p.itch_url || '')}" placeholder="https://you.itch.io/game">
+              <button class="btn btn-sm" onclick="enrichItch()" type="button">Fetch</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Live URL</label>
+            <input id="f-live" value="${escapeHtml(p.live_url || '')}" placeholder="https://...">
+          </div>
+
+          <div class="field field-full">
+            <label>Cover image</label>
+            <div class="dropzone" id="cover-drop">
+              ${cover ? `<img class="uploaded-thumb" src="/api/thumbnails/${cover}"><br>` : ''}
+              <span>Drop image, or click to upload</span>
+              <input type="file" accept="image/*" id="cover-file" hidden>
+            </div>
+          </div>
+          <div class="field field-full">
+            <label>Screenshots</label>
+            <div class="dropzone" id="screens-drop">
+              <div id="screens-preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+              <span>Drop image(s), or click to upload</span>
+              <input type="file" accept="image/*" multiple id="screens-file" hidden>
+            </div>
+          </div>
+
+          <div class="field field-full">
+            <label>Public flag (for future portfolio export)</label>
+            <div style="display:flex;gap:12px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--text-dim)">
+              <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="f-public" ${p.is_public ? 'checked' : ''}> mark as public</label>
+              <span style="color:var(--text-faint)">— stored, no UI for export yet</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="field-hint" id="form-hint"></div>
+        <div class="modal-footer-actions">
+          <button class="btn" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-accent" id="save-btn" onclick="saveProject(${isEdit ? p.id : 'null'})">${isEdit ? 'Save' : 'Create'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  openModal(html);
+
+  // wire tag input
+  const techWrapper = document.getElementById('f-tech-wrapper');
+  const techInput = document.getElementById('f-tech-input');
+  function rerenderTags() {
+    techWrapper.querySelectorAll('.tag').forEach(t => t.remove());
+    tech.forEach((t, i) => {
+      const span = document.createElement('span');
+      span.className = 'tag tag-removable';
+      span.innerHTML = `${escapeHtml(t)} <span style="opacity:0.5">×</span>`;
+      span.onclick = () => { tech.splice(i, 1); rerenderTags(); };
+      techWrapper.insertBefore(span, techInput);
+    });
+  }
+  rerenderTags();
+  techInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = techInput.value.trim().replace(/,$/, '');
+      if (v && !tech.includes(v)) {
+        tech.push(v);
+        rerenderTags();
+      }
+      techInput.value = '';
+    } else if (e.key === 'Backspace' && !techInput.value && tech.length) {
+      tech.pop();
+      rerenderTags();
+    }
+  });
+
+  // wire cover dropzone
+  setupDropzone('cover-drop', 'cover-file', async (files) => {
+    if (!files.length) return;
+    try {
+      const fd = new FormData();
+      fd.append('file', files[0]);
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      cover = data.filename;
+      const dz = document.getElementById('cover-drop');
+      dz.innerHTML = `<img class="uploaded-thumb" src="/api/thumbnails/${cover}"><br><span>Replace image</span><input type="file" accept="image/*" id="cover-file" hidden>`;
+      setupDropzone('cover-drop', 'cover-file', arguments.callee);
+    } catch (e) { toast('Upload failed', 'error'); }
+  });
+
+  // wire screenshots dropzone
+  function refreshScreensPreview() {
+    const prev = document.getElementById('screens-preview');
+    if (!prev) return;
+    prev.innerHTML = screenshots.map((s, i) => `
+      <div style="position:relative;display:inline-block">
+        <img src="/api/thumbnails/${s}" style="width:60px;height:60px;object-fit:cover;border-radius:4px;border:1px solid var(--border)">
+        <button onclick="window._removeScreenshot(${i})" style="position:absolute;top:-6px;right:-6px;background:var(--accent);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer">×</button>
+      </div>`).join('');
+  }
+  window._removeScreenshot = (i) => { screenshots.splice(i, 1); refreshScreensPreview(); };
+  refreshScreensPreview();
+
+  setupDropzone('screens-drop', 'screens-file', async (files) => {
+    for (const f of files) {
+      try {
+        const fd = new FormData();
+        fd.append('file', f);
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        screenshots.push(data.filename);
+      } catch (e) { toast('Upload failed', 'error'); }
+    }
+    refreshScreensPreview();
+  });
+
+  // expose form data for save
+  window._formCtx = {
+    getData: () => ({
+      title: document.getElementById('f-title').value.trim(),
+      year: parseInt(document.getElementById('f-year').value) || null,
+      category: document.getElementById('f-category').value,
+      status: document.getElementById('f-status').value,
+      tech_stack: tech,
+      description: document.getElementById('f-description').value,
+      long_description: document.getElementById('f-long').value,
+      local_path: document.getElementById('f-local').value.trim() || null,
+      github_url: document.getElementById('f-github').value.trim() || null,
+      itch_url: document.getElementById('f-itch').value.trim() || null,
+      live_url: document.getElementById('f-live').value.trim() || null,
+      cover_image: cover,
+      screenshots: screenshots,
+      is_public: document.getElementById('f-public').checked,
+    }),
+    addTech: (t) => { if (t && !tech.includes(t)) { tech.push(t); rerenderTags(); } },
+    setCover: (filename) => {
+      cover = filename;
+      const dz = document.getElementById('cover-drop');
+      if (dz) dz.querySelector('.uploaded-thumb')?.remove();
+      const img = document.createElement('img');
+      img.className = 'uploaded-thumb';
+      img.src = '/api/thumbnails/' + cover;
+      dz.insertBefore(img, dz.firstChild);
+    },
+    addScreenshot: (filename) => { screenshots.push(filename); refreshScreensPreview(); },
+  };
+}
+
+function setupDropzone(zoneId, inputId, onFiles) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  if (!zone || !input) return;
+  zone.onclick = () => input.click();
+  input.onchange = () => onFiles(Array.from(input.files));
+  zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+  zone.ondragleave = () => zone.classList.remove('dragover');
+  zone.ondrop = (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    onFiles(Array.from(e.dataTransfer.files));
+  };
+}
+
+async function saveProject(id) {
+  const data = window._formCtx.getData();
+  if (!data.title) { toast('Title required', 'error'); return; }
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (id) {
+      await api(`/api/projects/${id}`, { method: 'PATCH', body: data });
+      toast('Saved', 'success');
+      closeModal();
+      loadProject(id);
+    } else {
+      const created = await api('/api/projects', { method: 'POST', body: data });
+      toast('Created', 'success');
+      closeModal();
+      loadProject(created.id);
+    }
+  } catch (e) {
+    toast(`Save failed: ${e.message}`, 'error');
+    btn.disabled = false; btn.textContent = id ? 'Save' : 'Create';
+  }
+}
+
+// ----- Enrichment -----
+async function enrichGithub() {
+  const url = document.getElementById('f-github').value.trim();
+  if (!url) { toast('Paste a GitHub URL first', 'error'); return; }
+  toast('Fetching from GitHub…');
+  try {
+    const data = await api('/api/enrich/github', { method: 'POST', body: { url } });
+    if (!document.getElementById('f-title').value) document.getElementById('f-title').value = data.title || '';
+    if (!document.getElementById('f-description').value) document.getElementById('f-description').value = data.description || '';
+    if (!document.getElementById('f-long').value && data.long_description) document.getElementById('f-long').value = data.long_description;
+    if (!document.getElementById('f-live').value && data.live_url) document.getElementById('f-live').value = data.live_url;
+    if (!document.getElementById('f-year').value && data.year) document.getElementById('f-year').value = data.year;
+    (data.tech_stack || []).forEach(t => window._formCtx.addTech(t));
+    if (data.cover_image && !window._formCtx.getData().cover_image) window._formCtx.setCover(data.cover_image);
+    toast('GitHub data filled', 'success');
+  } catch (e) { toast(`Enrichment failed: ${e.message}`, 'error'); }
+}
+
+async function enrichItch() {
+  const url = document.getElementById('f-itch').value.trim();
+  if (!url) { toast('Paste an itch.io URL first', 'error'); return; }
+  toast('Fetching from itch.io…');
+  try {
+    const data = await api('/api/enrich/itch', { method: 'POST', body: { url } });
+    if (!document.getElementById('f-title').value) document.getElementById('f-title').value = data.title || '';
+    if (!document.getElementById('f-description').value) document.getElementById('f-description').value = data.description || '';
+    if (data.cover_image && !window._formCtx.getData().cover_image) window._formCtx.setCover(data.cover_image);
+    document.getElementById('f-category').value = 'game';
+    toast('itch.io data filled', 'success');
+  } catch (e) { toast(`Enrichment failed: ${e.message}`, 'error'); }
+}
+
+// =========================================================================
+// IMPORT WIZARD
+// =========================================================================
+const wizard = {
+  step: 1,
+  path: '',
+  candidates: [],
+  selections: {},   // by index → {selected, title, category}
+};
+
+function openImportWizard() {
+  wizard.step = 1;
+  wizard.path = '';
+  wizard.candidates = [];
+  wizard.selections = {};
+  renderImportWizard();
+}
+
+function renderImportWizard() {
+  const stepLabels = ['1. Folder', '2. Scan', '3. Review', '4. Import'];
+  const steps = stepLabels.map((label, i) => {
+    const n = i + 1;
+    let cls = 'wizard-step';
+    if (n === wizard.step) cls += ' active';
+    else if (n < wizard.step) cls += ' done';
+    return `<span class="${cls}">${label}</span>`;
+  }).join(' &nbsp;·&nbsp; ');
+
+  let body = '';
+  let footer = `<div class="modal-footer-actions">
+    <button class="btn" onclick="closeModal()">Close</button>
+  </div>`;
+
+  if (wizard.step === 1) {
+    body = `
+      <p style="margin-bottom:16px;color:var(--text-dim)">
+        Point Vault at a root folder. It will recursively scan for project-like
+        folders (anything with .git, package.json, Assets/, *.csproj, index.html…).
+      </p>
+      <div class="field">
+        <label>Path</label>
+        <input id="wiz-path" placeholder="D:/projects  or  /Users/you/code  or USB drive path"
+          value="${escapeHtml(wizard.path)}">
+        <div class="field-hint">Hint: paste a path. The folder picker dialog isn't available from a browser — manually copy the path from your file explorer's address bar.</div>
+      </div>
+    `;
+    footer = `<div class="modal-footer-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="wizardScan()">Scan →</button>
+    </div>`;
+  }
+
+  if (wizard.step === 2) {
+    body = `
+      <div style="text-align:center;padding:60px;">
+        <div class="spinner"></div>
+        <div style="margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em">
+          Scanning ${escapeHtml(wizard.path)}…
+        </div>
+      </div>
+    `;
+  }
+
+  if (wizard.step === 3) {
+    if (wizard.candidates.length === 0) {
+      body = `<div class="empty-state"><h2>Nothing found</h2><p>No project-like folders detected at <code>${escapeHtml(wizard.path)}</code>. Try a different root.</p></div>`;
+      footer = `<div class="modal-footer-actions">
+        <button class="btn" onclick="wizard.step=1; renderImportWizard()">← Back</button>
+        <button class="btn" onclick="closeModal()">Close</button>
+      </div>`;
+    } else {
+      const items = wizard.candidates.map((c, i) => {
+        const sel = wizard.selections[i];
+        const tags = (c.tech_stack || []).slice(0, 4).map(t => `<span>${escapeHtml(t)}</span>`).join(' · ');
+        return `
+          <div class="candidate ${sel.selected ? '' : 'skipped'}">
+            <input type="checkbox" class="candidate-checkbox" ${sel.selected ? 'checked' : ''}
+              onchange="wizard.selections[${i}].selected=this.checked; renderImportWizard()">
+            <div class="candidate-icon">${(sel.title || c.name)[0].toUpperCase()}</div>
+            <div class="candidate-info">
+              <div class="candidate-name">${escapeHtml(sel.title)}</div>
+              <div class="candidate-path">${escapeHtml(c.path)}${c.volume_label ? ' · ' + escapeHtml(c.volume_label) : ''}</div>
+              <div class="candidate-tags">${tags || 'no tags'} · ${c.size_mb}MB · ${fmtDate(c.last_modified)}</div>
+            </div>
+            <div class="candidate-edit" style="display:flex;gap:6px;flex-direction:column">
+              <input value="${escapeHtml(sel.title)}" onchange="wizard.selections[${i}].title=this.value"
+                placeholder="title" style="width:160px">
+              <select onchange="wizard.selections[${i}].category=this.value">
+                ${CATEGORIES.map(cat => `<option value="${cat}" ${sel.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+              </select>
+            </div>
+          </div>`;
+      }).join('');
+      const selectedCount = Object.values(wizard.selections).filter(s => s.selected).length;
+      body = `
+        <div style="margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+          <div style="color:var(--text-dim);font-size:13px;">
+            Found <strong>${wizard.candidates.length}</strong> projects ·
+            <strong style="color:var(--accent)">${selectedCount}</strong> selected
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm" onclick="selectAllCandidates(true)">Select all</button>
+            <button class="btn btn-sm" onclick="selectAllCandidates(false)">None</button>
+          </div>
+        </div>
+        ${items}
+      `;
+      footer = `<div class="modal-footer-actions">
+        <button class="btn" onclick="wizard.step=1; renderImportWizard()">← Back</button>
+        <button class="btn btn-accent" onclick="wizardImport()">Import ${selectedCount} →</button>
+      </div>`;
+    }
+  }
+
+  if (wizard.step === 4) {
+    body = `
+      <div style="text-align:center;padding:40px;">
+        <div class="spinner"></div>
+        <div style="margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.1em">
+          Importing… generating thumbnails…
+        </div>
+      </div>
+    `;
+  }
+
+  if (wizard.step === 5) {
+    body = `
+      <div class="empty-state">
+        <h2>Imported.</h2>
+        <p>${wizard.imported || 0} project${wizard.imported === 1 ? '' : 's'} added to your vault.</p>
+        <button class="btn btn-accent" onclick="closeModal(); loadProjects();">Done</button>
+      </div>
+    `;
+    footer = '';
+  }
+
+  openModal(`
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <div class="modal-title">Import wizard</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="wizard-steps">${steps}</div>
+        ${body}
+      </div>
+      ${footer ? `<div class="modal-footer"><div></div>${footer}</div>` : ''}
+    </div>
+  `);
+}
+
+function selectAllCandidates(value) {
+  Object.keys(wizard.selections).forEach(k => wizard.selections[k].selected = value);
+  renderImportWizard();
+}
+
+async function wizardScan() {
+  const path = document.getElementById('wiz-path').value.trim();
+  if (!path) { toast('Enter a path', 'error'); return; }
+  wizard.path = path;
+  wizard.step = 2;
+  renderImportWizard();
+  try {
+    const data = await api('/api/import/scan', { method: 'POST', body: { path } });
+    wizard.candidates = data.candidates;
+    wizard.selections = {};
+    data.candidates.forEach((c, i) => {
+      wizard.selections[i] = {
+        selected: true,
+        title: c.name,
+        category: guessCategory(c),
+      };
+    });
+    wizard.step = 3;
+    renderImportWizard();
+    if (data.errors_skipped) toast(`Skipped ${data.errors_skipped} folder(s) (permission denied)`);
+  } catch (e) {
+    toast(`Scan failed: ${e.message}`, 'error');
+    wizard.step = 1;
+    renderImportWizard();
+  }
+}
+
+function guessCategory(candidate) {
+  const tech = (candidate.tech_stack || []).join(' ').toLowerCase();
+  const markers = (candidate.markers || []).join(' ').toLowerCase();
+  if (tech.includes('unity') || tech.includes('unreal') || markers.includes('unity')) return 'game';
+  if (tech.includes('react') || tech.includes('next') || tech.includes('html') || tech.includes('php')) return 'web';
+  if (tech.includes('python') || tech.includes('go') || tech.includes('rust')) return 'tool';
+  return 'other';
+}
+
+async function wizardImport() {
+  wizard.step = 4;
+  renderImportWizard();
+  const items = wizard.candidates
+    .map((c, i) => ({ candidate: c, sel: wizard.selections[i] }))
+    .filter(({ sel }) => sel.selected)
+    .map(({ candidate, sel }) => ({
+      path: candidate.path,
+      title: sel.title,
+      category: sel.category,
+      status: 'finished',
+      tech_stack: candidate.tech_stack,
+      year: candidate.last_modified ? parseInt(candidate.last_modified.slice(0, 4)) : null,
+      description: (candidate.readme || '').split('\n').filter(l => l.trim() && !l.startsWith('#')).slice(0, 1).join(' ').slice(0, 300),
+      long_description: candidate.readme || '',
+      volume_label: candidate.volume_label,
+    }));
+  try {
+    const data = await api('/api/import/bulk', { method: 'POST', body: { items } });
+    wizard.imported = data.count;
+    wizard.step = 5;
+    renderImportWizard();
+    loadProjects();
+  } catch (e) {
+    toast(`Import failed: ${e.message}`, 'error');
+    wizard.step = 3;
+    renderImportWizard();
+  }
+}
+
+// =========================================================================
+// SEARCH
+// =========================================================================
+let searchTimer = null;
+document.getElementById('search-input').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    state.filters.search = e.target.value.trim();
+    loadProjects();
+  }, 250);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('modal-root').children.length) closeModal();
+    else if (state.view === 'detail') { state.view = 'grid'; render(); }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault();
+    document.getElementById('search-input').focus();
+  }
+});
+
+// =========================================================================
+// BOOT
+// =========================================================================
+loadProjects();
+</script>
+</body>
+</html>
