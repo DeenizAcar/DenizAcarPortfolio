@@ -219,6 +219,16 @@ def list_projects(conn, filters=None):
         where.append("tech_stack LIKE ?")
         params.append(f'%"{filters["tech"]}"%')
 
+    if filters.get("languages"):
+        # OR-match: project tech_stack contains any of the selected languages
+        langs = filters["languages"]
+        if langs:
+            parts = []
+            for lang in langs:
+                parts.append("tech_stack LIKE ?")
+                params.append(f'%"{lang}"%')
+            where.append("(" + " OR ".join(parts) + ")")
+
     if filters.get("search"):
         q = f"%{filters['search']}%"
         where.append(

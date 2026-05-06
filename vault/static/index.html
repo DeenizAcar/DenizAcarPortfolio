@@ -604,6 +604,30 @@ a:hover { color: var(--accent); }
   margin-bottom: 8px;
 }
 
+.lang-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lang-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  color: var(--text-dim);
+  background: var(--bg);
+  letter-spacing: 0.05em;
+  transition: all 0.15s;
+  user-select: none;
+}
+.lang-chip:hover { border-color: var(--border-strong); color: var(--text); }
+.lang-chip.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .tag-input-wrapper {
   display: flex;
   flex-wrap: wrap;
@@ -814,13 +838,24 @@ const state = {
     status: null,
     year: null,
     tech: null,
+    languages: [],
     search: '',
     include_archived: false,
   },
   loading: false,
 };
 
-const CATEGORIES = ['web', 'game', 'school', 'tool', 'jam', 'art', 'other'];
+const CATEGORIES = [
+  'School homeworks',
+  'School Projects',
+  'Game Jam Games',
+  'BloodyBanana Games',
+  'Personal Projects',
+  'Websites',
+  'Mobile Apps',
+  'Desktop Apps',
+];
+const LANGUAGES = ['PHP', 'Java', 'C#', 'HTML', 'CSS', 'JavaScript', 'SQL', 'Python'];
 const STATUSES = ['working', 'broken', 'wip', 'finished', 'abandoned', 'idea'];
 
 // =========================================================================
@@ -910,7 +945,11 @@ async function loadProjects() {
   try {
     const params = new URLSearchParams();
     Object.entries(state.filters).forEach(([k, v]) => {
-      if (v !== null && v !== '' && v !== false) params.set(k, v);
+      if (Array.isArray(v)) {
+        if (v.length) params.set(k, v.join(','));
+      } else if (v !== null && v !== '' && v !== false) {
+        params.set(k, v);
+      }
     });
     const data = await api(`/api/projects?${params}`);
     state.projects = data.items;
@@ -964,12 +1003,22 @@ function renderSidebar() {
     </div>`).join('');
 
   const techItems = Object.entries(state.facets.tech)
+    .filter(([t]) => !LANGUAGES.includes(t))
     .sort((a, b) => b[1] - a[1])
     .slice(0, 30)
     .map(([t, c]) => `
       <div class="filter-item ${f.tech === t ? 'active' : ''}" onclick="setFilter('tech', ${f.tech === t ? null : JSON.stringify(t)})">
         <span>${escapeHtml(t)}</span><span class="count">${c}</span>
       </div>`).join('');
+
+  const langItems = LANGUAGES.map(l => {
+    const active = f.languages.includes(l);
+    const count = state.facets.tech[l] || 0;
+    return `
+      <div class="filter-item ${active ? 'active' : ''}" onclick="toggleArrayFilter('languages', ${JSON.stringify(l)})">
+        <span>${l}</span><span class="count">${active ? '✓' : (count || '')}</span>
+      </div>`;
+  }).join('');
 
   const catItems = CATEGORIES.map(c => `
     <div class="filter-item ${f.category === c ? 'active' : ''}" onclick="setFilter('category', ${f.category === c ? null : JSON.stringify(c)})">
@@ -981,15 +1030,21 @@ function renderSidebar() {
       <span>${s}</span>
     </div>`).join('');
 
+  const langClearBtn = f.languages.length
+    ? `<div class="filter-item" style="color:var(--text-faint);font-style:italic" onclick="state.filters.languages=[]; loadProjects()">clear (${f.languages.length})</div>`
+    : '';
+
   sidebar.innerHTML = `
     <h3>Category</h3>
     <div class="filter-list">${catItems}</div>
+    <h3>Languages <span style="font-style:italic;text-transform:none;color:var(--text-faint);letter-spacing:0">multi-select</span></h3>
+    <div class="filter-list">${langItems}${langClearBtn}</div>
     <h3>Status</h3>
     <div class="filter-list">${statusItems}</div>
     <h3>Year</h3>
     <div class="filter-list">${yearItems || '<div class="filter-item" style="color:var(--text-faint)">no projects yet</div>'}</div>
-    <h3>Tech</h3>
-    <div class="filter-list">${techItems || '<div class="filter-item" style="color:var(--text-faint)">no tags yet</div>'}</div>
+    <h3>Other tags</h3>
+    <div class="filter-list">${techItems || '<div class="filter-item" style="color:var(--text-faint)">none</div>'}</div>
     <h3>View</h3>
     <div class="filter-list">
       <div class="filter-item ${f.include_archived ? 'active' : ''}" onclick="setFilter('include_archived', ${!f.include_archived})">
@@ -1001,6 +1056,15 @@ function renderSidebar() {
 
 function setFilter(key, value) {
   state.filters[key] = value;
+  loadProjects();
+}
+
+function toggleArrayFilter(key, value) {
+  const arr = state.filters[key] || [];
+  const idx = arr.indexOf(value);
+  if (idx >= 0) arr.splice(idx, 1);
+  else arr.push(value);
+  state.filters[key] = arr;
   loadProjects();
 }
 
@@ -1066,7 +1130,7 @@ function renderGrid() {
 }
 
 function clearFilters() {
-  state.filters = { category: null, status: null, year: null, tech: null, search: '', include_archived: false };
+  state.filters = { category: null, status: null, year: null, tech: null, languages: [], search: '', include_archived: false };
   document.getElementById('search-input').value = '';
   loadProjects();
 }
@@ -1151,6 +1215,11 @@ function renderDetail() {
         <div class="action-row">
           <button class="btn" onclick="openEditModal(${p.id})">Edit</button>
           <button class="btn" onclick="togglePin(${p.id})">${p.is_pinned ? 'Unpin' : 'Pin to top'}</button>
+          ${p.local_path && !p.local_path.includes('.vault')
+            ? `<button class="btn" onclick="moveToVault(${p.id})" title="Copy files into Vault. Skips build folders. After this finishes you can manually delete the original.">Move to Vault</button>`
+            : (p.local_path && p.local_path.includes('.vault')
+                ? `<span class="tag" style="border-color:var(--accent);color:var(--accent);">in vault</span>`
+                : '')}
           <button class="btn" onclick="window.location='/api/projects/${p.id}/export'">Export ZIP</button>
           <button class="btn" onclick="archiveProject(${p.id})" style="margin-left:auto;color:var(--accent)">Archive</button>
         </div>
@@ -1185,6 +1254,23 @@ async function togglePin(id) {
     await api(`/api/projects/${id}`, { method: 'PATCH', body: { is_pinned: !state.detailProject.is_pinned } });
     loadProject(id);
   } catch (e) { toast(e.message, 'error'); }
+}
+
+async function moveToVault(id) {
+  if (!confirm('Copy all project files into Vault?\n\nThis will copy the entire folder (skipping node_modules, .git, build, etc.) into ~/.vault/projects/. After it finishes, you can manually delete the original folder from your disk.\n\nFor large projects this may take a while.')) return;
+  toast('Copying files into Vault — please wait…');
+  try {
+    const result = await api(`/api/projects/${id}/move-to-vault`, { method: 'POST' });
+    if (result.already_in_vault) {
+      toast('Already in vault', 'success');
+    } else {
+      const mb = (result.bytes / 1024 / 1024).toFixed(1);
+      toast(`Copied ${result.copied} files (${mb} MB) into Vault`, 'success');
+    }
+    loadProject(id);
+  } catch (e) {
+    toast(`Move failed: ${e.message}`, 'error');
+  }
 }
 
 async function archiveProject(id) {
@@ -1253,10 +1339,14 @@ function renderProjectForm(project) {
               ${STATUSES.map(s => `<option value="${s}" ${p.status === s ? 'selected' : ''}>${s}</option>`).join('')}
             </select>
           </div>
-          <div class="field">
-            <label>Tech stack</label>
+          <div class="field field-full">
+            <label>Languages — click to toggle</label>
+            <div id="f-lang-chips" class="lang-chips"></div>
+          </div>
+          <div class="field field-full">
+            <label>Other tags (frameworks, tools, libs)</label>
             <div class="tag-input-wrapper" id="f-tech-wrapper">
-              <input id="f-tech-input" placeholder="add tag, press enter">
+              <input id="f-tech-input" placeholder="add tag, press enter — e.g. Unity, React, WordPress">
             </div>
           </div>
           <div class="field field-full">
@@ -1268,9 +1358,29 @@ function renderProjectForm(project) {
             <textarea id="f-long" rows="6" placeholder="# Project notes...">${escapeHtml(p.long_description || '')}</textarea>
           </div>
 
+          <div class="field field-full">
+            <label>Upload project files (copies into Vault — original folder can be deleted afterwards)</label>
+            <div class="dropzone" id="folder-drop" style="text-align:left;padding:18px 20px;">
+              <input type="file" id="folder-picker" webkitdirectory directory multiple style="display:none">
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <button class="btn" type="button" onclick="document.getElementById('folder-picker').click()">📁 Select folder</button>
+                <span id="upload-summary" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">no folder selected</span>
+              </div>
+              <label style="display:flex;gap:6px;align-items:center;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--text-dim);cursor:pointer;">
+                <input type="checkbox" id="exclude-build" checked>
+                Exclude build folders (node_modules, .git, Library, Temp, obj, bin, build, dist, etc.)
+              </label>
+            </div>
+            <div id="upload-progress" style="display:none;margin-top:8px;">
+              <div style="height:4px;background:var(--bg);border-radius:2px;overflow:hidden;">
+                <div id="upload-bar" style="height:100%;width:0%;background:var(--accent);transition:width 0.2s;"></div>
+              </div>
+              <div id="upload-status" style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:4px;letter-spacing:0.05em;"></div>
+            </div>
+          </div>
           <div class="field">
-            <label>Local path</label>
-            <input id="f-local" value="${escapeHtml(p.local_path || '')}" placeholder="D:/projects/my-game">
+            <label>Local path${p.local_path && p.local_path.includes('.vault') ? ' <span style="color:var(--accent);text-transform:none;letter-spacing:0;font-style:italic">— stored in Vault</span>' : ''}</label>
+            <input id="f-local" value="${escapeHtml(p.local_path || '')}" placeholder="D:/projects/my-game (or leave blank, use upload above)">
           </div>
           <div class="field">
             <label>GitHub URL</label>
@@ -1328,32 +1438,60 @@ function renderProjectForm(project) {
   `;
   openModal(html);
 
-  // wire tag input
+  // wire language chips + tag input (both feed the same tech array)
   const techWrapper = document.getElementById('f-tech-wrapper');
   const techInput = document.getElementById('f-tech-input');
+  const langChipsEl = document.getElementById('f-lang-chips');
+
+  function rerenderLangChips() {
+    if (!langChipsEl) return;
+    langChipsEl.innerHTML = LANGUAGES.map(l => {
+      const active = tech.includes(l);
+      return `<span class="lang-chip ${active ? 'active' : ''}" data-lang="${escapeHtml(l)}">${escapeHtml(l)}</span>`;
+    }).join('');
+    langChipsEl.querySelectorAll('.lang-chip').forEach(el => {
+      el.onclick = () => {
+        const l = el.dataset.lang;
+        const idx = tech.indexOf(l);
+        if (idx >= 0) tech.splice(idx, 1);
+        else tech.push(l);
+        rerenderAll();
+      };
+    });
+  }
+
   function rerenderTags() {
     techWrapper.querySelectorAll('.tag').forEach(t => t.remove());
+    // only show non-language tags here (languages shown as chips above)
     tech.forEach((t, i) => {
+      if (LANGUAGES.includes(t)) return;
       const span = document.createElement('span');
       span.className = 'tag tag-removable';
       span.innerHTML = `${escapeHtml(t)} <span style="opacity:0.5">×</span>`;
-      span.onclick = () => { tech.splice(i, 1); rerenderTags(); };
+      span.onclick = () => {
+        const idx = tech.indexOf(t);
+        if (idx >= 0) tech.splice(idx, 1);
+        rerenderAll();
+      };
       techWrapper.insertBefore(span, techInput);
     });
   }
-  rerenderTags();
+
+  function rerenderAll() { rerenderLangChips(); rerenderTags(); }
+  rerenderAll();
+
   techInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
       const v = techInput.value.trim().replace(/,$/, '');
       if (v && !tech.includes(v)) {
         tech.push(v);
-        rerenderTags();
+        rerenderAll();
       }
       techInput.value = '';
     } else if (e.key === 'Backspace' && !techInput.value && tech.length) {
       tech.pop();
-      rerenderTags();
+      rerenderAll();
     }
   });
 
@@ -1398,8 +1536,48 @@ function renderProjectForm(project) {
     refreshScreensPreview();
   });
 
+  // wire folder upload picker
+  let pendingFolderFiles = [];
+  const EXCLUDE_DIRS = ['node_modules', '.git', 'Library', 'Temp', 'obj', 'bin', 'build', 'dist', '.next', '.cache', '__pycache__', '.venv', 'venv', '.idea', '.vscode', 'Logs'];
+  const folderPicker = document.getElementById('folder-picker');
+  const uploadSummary = document.getElementById('upload-summary');
+  const excludeCheckbox = document.getElementById('exclude-build');
+
+  function refreshUploadSummary(filesArray) {
+    if (!uploadSummary) return;
+    if (!filesArray || filesArray.length === 0) {
+      uploadSummary.textContent = 'no folder selected';
+      return;
+    }
+    const totalBytes = filesArray.reduce((s, f) => s + f.size, 0);
+    const mb = (totalBytes / 1024 / 1024).toFixed(1);
+    const folderName = (filesArray[0].webkitRelativePath || '').split('/')[0] || '(unnamed)';
+    uploadSummary.textContent = `${folderName} — ${filesArray.length} files, ${mb} MB queued`;
+  }
+
+  function rebuildPendingFiles() {
+    if (!folderPicker.files || !folderPicker.files.length) {
+      pendingFolderFiles = [];
+      refreshUploadSummary([]);
+      return;
+    }
+    const all = Array.from(folderPicker.files);
+    const exclude = excludeCheckbox && excludeCheckbox.checked;
+    pendingFolderFiles = exclude
+      ? all.filter(f => {
+          const parts = (f.webkitRelativePath || f.name).split('/');
+          return !parts.some(p => EXCLUDE_DIRS.includes(p));
+        })
+      : all;
+    refreshUploadSummary(pendingFolderFiles);
+  }
+
+  if (folderPicker) folderPicker.onchange = rebuildPendingFiles;
+  if (excludeCheckbox) excludeCheckbox.onchange = rebuildPendingFiles;
+
   // expose form data for save
   window._formCtx = {
+    getPendingFiles: () => pendingFolderFiles,
     getData: () => ({
       title: document.getElementById('f-title').value.trim(),
       year: parseInt(document.getElementById('f-year').value) || null,
@@ -1416,7 +1594,7 @@ function renderProjectForm(project) {
       screenshots: screenshots,
       is_public: document.getElementById('f-public').checked,
     }),
-    addTech: (t) => { if (t && !tech.includes(t)) { tech.push(t); rerenderTags(); } },
+    addTech: (t) => { if (t && !tech.includes(t)) { tech.push(t); rerenderAll(); } },
     setCover: (filename) => {
       cover = filename;
       const dz = document.getElementById('cover-drop');
@@ -1450,22 +1628,101 @@ async function saveProject(id) {
   if (!data.title) { toast('Title required', 'error'); return; }
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
+  const pendingFiles = window._formCtx.getPendingFiles ? window._formCtx.getPendingFiles() : [];
+
   try {
+    let projectId = id;
     if (id) {
       await api(`/api/projects/${id}`, { method: 'PATCH', body: data });
-      toast('Saved', 'success');
-      closeModal();
-      loadProject(id);
     } else {
       const created = await api('/api/projects', { method: 'POST', body: data });
-      toast('Created', 'success');
-      closeModal();
-      loadProject(created.id);
+      projectId = created.id;
     }
+
+    if (pendingFiles && pendingFiles.length) {
+      btn.textContent = 'Uploading files…';
+      await uploadFolderInBatches(projectId, pendingFiles);
+      toast(`Uploaded ${pendingFiles.length} files into Vault`, 'success');
+    } else {
+      toast(id ? 'Saved' : 'Created', 'success');
+    }
+
+    closeModal();
+    loadProject(projectId);
   } catch (e) {
     toast(`Save failed: ${e.message}`, 'error');
     btn.disabled = false; btn.textContent = id ? 'Save' : 'Create';
   }
+}
+
+async function uploadFolderInBatches(projectId, files) {
+  const BATCH_BYTES = 50 * 1024 * 1024;   // ~50MB per batch
+  const BATCH_FILES = 80;
+  const progressBox = document.getElementById('upload-progress');
+  const bar = document.getElementById('upload-bar');
+  const status = document.getElementById('upload-status');
+  if (progressBox) progressBox.style.display = 'block';
+
+  const totalBytes = files.reduce((s, f) => s + f.size, 0);
+  let uploadedBytes = 0;
+  let processed = 0;
+
+  // build batches
+  const batches = [];
+  let cur = [], curBytes = 0;
+  for (const f of files) {
+    if (cur.length && (curBytes + f.size > BATCH_BYTES || cur.length >= BATCH_FILES)) {
+      batches.push(cur);
+      cur = []; curBytes = 0;
+    }
+    cur.push(f);
+    curBytes += f.size;
+  }
+  if (cur.length) batches.push(cur);
+
+  for (let bi = 0; bi < batches.length; bi++) {
+    const batch = batches[bi];
+    const batchBytes = batch.reduce((s, f) => s + f.size, 0);
+    await uploadBatch(projectId, batch, (loaded) => {
+      const pct = Math.min(100, ((uploadedBytes + loaded) / totalBytes) * 100);
+      if (bar) bar.style.width = pct.toFixed(1) + '%';
+      if (status) {
+        const mbDone = ((uploadedBytes + loaded) / 1024 / 1024).toFixed(1);
+        const mbAll = (totalBytes / 1024 / 1024).toFixed(1);
+        status.textContent = `batch ${bi + 1}/${batches.length} · ${processed + batch.length}/${files.length} files · ${mbDone}/${mbAll} MB`;
+      }
+    });
+    uploadedBytes += batchBytes;
+    processed += batch.length;
+  }
+  if (bar) bar.style.width = '100%';
+}
+
+function uploadBatch(projectId, files, onProgress) {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    const paths = [];
+    for (const f of files) {
+      fd.append('files', f);
+      paths.push(f.webkitRelativePath || f.name);
+    }
+    fd.append('paths', JSON.stringify(paths));
+
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded); };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); } catch (e) { resolve({}); }
+      } else {
+        let msg = `HTTP ${xhr.status}`;
+        try { msg = JSON.parse(xhr.responseText).detail || msg; } catch (e) {}
+        reject(new Error(msg));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.open('POST', `/api/projects/${projectId}/upload-files`);
+    xhr.send(fd);
+  });
 }
 
 // ----- Enrichment -----
@@ -1686,10 +1943,11 @@ async function wizardScan() {
 function guessCategory(candidate) {
   const tech = (candidate.tech_stack || []).join(' ').toLowerCase();
   const markers = (candidate.markers || []).join(' ').toLowerCase();
-  if (tech.includes('unity') || tech.includes('unreal') || markers.includes('unity')) return 'game';
-  if (tech.includes('react') || tech.includes('next') || tech.includes('html') || tech.includes('php')) return 'web';
-  if (tech.includes('python') || tech.includes('go') || tech.includes('rust')) return 'tool';
-  return 'other';
+  if (tech.includes('unity') || tech.includes('unreal') || markers.includes('unity')) return 'Game Jam Games';
+  if (tech.includes('swift') || tech.includes('xcode') || tech.includes('kotlin') || tech.includes('android')) return 'Mobile Apps';
+  if (tech.includes('react') || tech.includes('next') || tech.includes('vue') || tech.includes('html') || tech.includes('php') || tech.includes('wordpress')) return 'Websites';
+  if (tech.includes('python') || tech.includes('go') || tech.includes('rust') || tech.includes('.net') || tech.includes('c#')) return 'Desktop Apps';
+  return 'Personal Projects';
 }
 
 async function wizardImport() {

@@ -59,6 +59,8 @@ VAULT_DIR.mkdir(exist_ok=True)
 DB_PATH = VAULT_DIR / "vault.db"
 THUMBS_DIR = VAULT_DIR / "thumbnails"
 THUMBS_DIR.mkdir(exist_ok=True)
+PROJECTS_DIR = VAULT_DIR / "projects"
+PROJECTS_DIR.mkdir(exist_ok=True)
 CONFIG_PATH = VAULT_DIR / "config.json"
 PORT_FILE = VAULT_DIR / "server.port"
 
@@ -620,15 +622,18 @@ async def api_list_projects(
     status: Optional[str] = None,
     year: Optional[int] = None,
     tech: Optional[str] = None,
+    languages: Optional[str] = None,
     search: Optional[str] = None,
     include_archived: bool = False,
 ):
     conn = get_db(request)
+    lang_list = [l.strip() for l in languages.split(",") if l.strip()] if languages else None
     items = schema.list_projects(conn, {
         "category": category,
         "status": status,
         "year": year,
         "tech": tech,
+        "languages": lang_list,
         "search": search,
         "include_archived": include_archived,
     })
@@ -661,7 +666,7 @@ class ProjectCreate(BaseModel):
     title: str
     description: Optional[str] = ""
     long_description: Optional[str] = ""
-    category: Optional[str] = "other"
+    category: Optional[str] = "Personal Projects"
     status: Optional[str] = "finished"
     year: Optional[int] = None
     tech_stack: Optional[list[str]] = []
@@ -820,7 +825,7 @@ async def api_import_scan(payload: ScanRequest):
 class BulkImportItem(BaseModel):
     path: str
     title: str
-    category: Optional[str] = "other"
+    category: Optional[str] = "Personal Projects"
     status: Optional[str] = "finished"
     year: Optional[int] = None
     tech_stack: Optional[list[str]] = []
@@ -857,6 +862,115 @@ async def api_import_bulk(payload: BulkImportRequest, request: Request):
         new_id = schema.insert_project(conn, data)
         created.append(new_id)
     return {"created": created, "count": len(created)}
+
+
+@app.post("/api/projects/{project_id}/upload-files")
+async def api_upload_project_files(
+    project_id: int,
+    request: Request,
+    files: list[UploadFile] = File(...),
+    paths: str = Form(...),
+):
+    """Receive a folder upload (browser FormData), preserve relative paths,
+    save under ~/.vault/projects/{id}/, and update the project's local_path."""
+    conn = get_db(request)
+    project = schema.get_project(conn, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    try:
+        rel_paths = json.loads(paths)
+    except Exception:
+        raise HTTPException(400, "paths must be valid JSON list")
+    if not isinstance(rel_paths, list) or len(rel_paths) != len(files):
+        raise HTTPException(400, "files/paths length mismatch")
+
+    proj_dir = PROJECTS_DIR / str(project_id)
+    proj_dir.mkdir(parents=True, exist_ok=True)
+
+    saved = 0
+    total_bytes = 0
+    for upload, rel in zip(files, rel_paths):
+        rel = (rel or upload.filename or "").replace("\\", "/").strip("/")
+        if not rel or ".." in rel.split("/"):
+            continue
+        dest = proj_dir / rel
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            continue
+        size = 0
+        with open(dest, "wb") as out:
+            while True:
+                chunk = await upload.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+                size += len(chunk)
+        total_bytes += size
+        saved += 1
+
+    # mark this project as vault-managed: local_path now points into vault
+    schema.update_project(conn, project_id, {
+        "local_path": str(proj_dir),
+        "local_volume_label": None,
+    })
+    return {"saved": saved, "bytes": total_bytes, "path": str(proj_dir)}
+
+
+@app.post("/api/projects/{project_id}/move-to-vault")
+async def api_move_to_vault(project_id: int, request: Request):
+    """Server-side copy: take the project's existing local_path and copy all
+    files into ~/.vault/projects/{id}/. Useful for projects added via the
+    import wizard. Skips common build folders (node_modules, .git, etc.).
+    Does NOT delete the source — the user must remove the original manually."""
+    conn = get_db(request)
+    project = schema.get_project(conn, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    src = project.get("local_path")
+    if not src:
+        raise HTTPException(400, "Project has no local_path to copy from")
+    src_path = Path(src)
+    if not src_path.exists():
+        raise HTTPException(400, f"Source path does not exist or is offline: {src}")
+
+    proj_dir = PROJECTS_DIR / str(project_id)
+    # if proj_dir already populated and src is already inside vault, nothing to do
+    try:
+        if str(src_path.resolve()).startswith(str(PROJECTS_DIR.resolve())):
+            return {"copied": 0, "bytes": 0, "already_in_vault": True, "path": str(proj_dir)}
+    except Exception:
+        pass
+
+    if proj_dir.exists() and any(proj_dir.iterdir()):
+        raise HTTPException(400, f"Vault folder for this project already exists and is not empty: {proj_dir}")
+    proj_dir.mkdir(parents=True, exist_ok=True)
+
+    file_count = 0
+    total_bytes = 0
+    for root, dirs, files in os.walk(src_path):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for f in files:
+            src_file = Path(root) / f
+            try:
+                rel = src_file.relative_to(src_path)
+            except ValueError:
+                continue
+            dest = proj_dir / rel
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_file, dest)
+                total_bytes += src_file.stat().st_size
+                file_count += 1
+            except (OSError, PermissionError):
+                continue
+
+    schema.update_project(conn, project_id, {
+        "local_path": str(proj_dir),
+        "local_volume_label": None,
+    })
+    return {"copied": file_count, "bytes": total_bytes, "path": str(proj_dir)}
 
 
 @app.get("/api/volumes")

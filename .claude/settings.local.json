@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"/c/GitHub/DenizAcarPortfolio\" log --oneline -5)",
+      "Bash(git -C \"/c/GitHub/DenizAcarPortfolio\" status)",
+      "Bash(git -C \"/c/GitHub/DenizAcarPortfolio\" ls-files vault/)",
+      "Bash(git -C \"/c/GitHub/DenizAcarPortfolio\" log --all --oneline)",
+      "Bash(git -C \"/c/GitHub/DenizAcarPortfolio\" diff HEAD --stat)"
+    ]
+  }
+}
