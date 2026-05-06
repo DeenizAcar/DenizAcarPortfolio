@@ -714,6 +714,39 @@ async def api_delete_project(project_id: int, request: Request):
     return {"ok": True}
 
 
+@app.delete("/api/projects/{project_id}/permanent")
+async def api_permanent_delete(project_id: int, request: Request):
+    """Hard delete: removes DB record, project files in vault, and thumbnails.
+    Irreversible."""
+    conn = get_db(request)
+    project = schema.get_project(conn, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    proj_dir = PROJECTS_DIR / str(project_id)
+    if proj_dir.exists():
+        try:
+            shutil.rmtree(proj_dir)
+        except Exception as e:
+            print(f"[delete] failed to remove {proj_dir}: {e}")
+
+    images = []
+    if project.get("cover_image"):
+        images.append(project["cover_image"])
+    images.extend(project.get("screenshots") or [])
+    for img in images:
+        try:
+            p = THUMBS_DIR / img
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass
+
+    conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    conn.commit()
+    return {"deleted": True}
+
+
 class NoteCreate(BaseModel):
     text: str
 
@@ -915,6 +948,92 @@ async def api_upload_project_files(
         "local_volume_label": None,
     })
     return {"saved": saved, "bytes": total_bytes, "path": str(proj_dir)}
+
+
+@app.post("/api/projects/{project_id}/upload-archive")
+async def api_upload_archive(
+    project_id: int,
+    request: Request,
+    archive: UploadFile = File(...),
+):
+    """Accept a .zip or .rar drop, extract into ~/.vault/projects/{id}/.
+    RAR requires the optional `rarfile` package + unrar.exe on PATH."""
+    import tempfile
+    conn = get_db(request)
+    project = schema.get_project(conn, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    name = (archive.filename or "").lower()
+    if not (name.endswith(".zip") or name.endswith(".rar")):
+        raise HTTPException(400, "Only .zip and .rar archives are supported")
+
+    proj_dir = PROJECTS_DIR / str(project_id)
+    proj_dir.mkdir(parents=True, exist_ok=True)
+
+    suffix = ".zip" if name.endswith(".zip") else ".rar"
+    fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    try:
+        with open(tmp_path, "wb") as out:
+            while True:
+                chunk = await archive.read(1024 * 1024)
+                if not chunk:
+                    break
+                out.write(chunk)
+
+        if name.endswith(".zip"):
+            with zipfile.ZipFile(tmp_path) as z:
+                for member in z.namelist():
+                    parts = Path(member).parts
+                    if not parts or ".." in parts:
+                        continue
+                    if Path(member).is_absolute():
+                        continue
+                    z.extract(member, proj_dir)
+        else:
+            try:
+                import rarfile
+            except ImportError:
+                raise HTTPException(
+                    400,
+                    "RAR support requires the 'rarfile' package. Install with: py -m pip install rarfile  (and ensure unrar.exe is available — comes with WinRAR or 7-Zip)."
+                )
+            try:
+                with rarfile.RarFile(tmp_path) as r:
+                    for member in r.namelist():
+                        parts = Path(member).parts
+                        if not parts or ".." in parts:
+                            continue
+                        if Path(member).is_absolute():
+                            continue
+                        r.extract(member, proj_dir)
+            except rarfile.RarCannotExec:
+                raise HTTPException(
+                    400,
+                    "RAR extraction needs unrar.exe on PATH. Install WinRAR (it bundles UnRAR.exe) and add its folder to PATH."
+                )
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+
+    schema.update_project(conn, project_id, {
+        "local_path": str(proj_dir),
+        "local_volume_label": None,
+    })
+
+    file_count = 0
+    total_bytes = 0
+    for root, _dirs, files in os.walk(proj_dir):
+        for f in files:
+            try:
+                file_count += 1
+                total_bytes += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                continue
+    return {"saved": file_count, "bytes": total_bytes, "path": str(proj_dir)}
 
 
 @app.post("/api/projects/{project_id}/move-to-vault")

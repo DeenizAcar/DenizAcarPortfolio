@@ -998,7 +998,7 @@ function renderSidebar() {
   const f = state.filters;
 
   const yearItems = state.facets.years.map(y => `
-    <div class="filter-item ${f.year == y.year ? 'active' : ''}" onclick="setFilter('year', ${f.year == y.year ? null : y.year})">
+    <div class="filter-item ${f.year == y.year ? 'active' : ''}" data-filter="year" data-value="${y.year}">
       <span>${y.year}</span><span class="count">${y.count}</span>
     </div>`).join('');
 
@@ -1007,7 +1007,7 @@ function renderSidebar() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 30)
     .map(([t, c]) => `
-      <div class="filter-item ${f.tech === t ? 'active' : ''}" onclick="setFilter('tech', ${f.tech === t ? null : JSON.stringify(t)})">
+      <div class="filter-item ${f.tech === t ? 'active' : ''}" data-filter="tech" data-value="${escapeHtml(t)}">
         <span>${escapeHtml(t)}</span><span class="count">${c}</span>
       </div>`).join('');
 
@@ -1015,23 +1015,23 @@ function renderSidebar() {
     const active = f.languages.includes(l);
     const count = state.facets.tech[l] || 0;
     return `
-      <div class="filter-item ${active ? 'active' : ''}" onclick="toggleArrayFilter('languages', ${JSON.stringify(l)})">
+      <div class="filter-item ${active ? 'active' : ''}" data-filter="languages" data-value="${escapeHtml(l)}">
         <span>${l}</span><span class="count">${active ? '✓' : (count || '')}</span>
       </div>`;
   }).join('');
 
   const catItems = CATEGORIES.map(c => `
-    <div class="filter-item ${f.category === c ? 'active' : ''}" onclick="setFilter('category', ${f.category === c ? null : JSON.stringify(c)})">
-      <span>${c}</span>
+    <div class="filter-item ${f.category === c ? 'active' : ''}" data-filter="category" data-value="${escapeHtml(c)}">
+      <span>${escapeHtml(c)}</span>
     </div>`).join('');
 
   const statusItems = STATUSES.map(s => `
-    <div class="filter-item ${f.status === s ? 'active' : ''}" onclick="setFilter('status', ${f.status === s ? null : JSON.stringify(s)})">
+    <div class="filter-item ${f.status === s ? 'active' : ''}" data-filter="status" data-value="${s}">
       <span>${s}</span>
     </div>`).join('');
 
   const langClearBtn = f.languages.length
-    ? `<div class="filter-item" style="color:var(--text-faint);font-style:italic" onclick="state.filters.languages=[]; loadProjects()">clear (${f.languages.length})</div>`
+    ? `<div class="filter-item" style="color:var(--text-faint);font-style:italic" data-filter="clear-languages">clear (${f.languages.length})</div>`
     : '';
 
   sidebar.innerHTML = `
@@ -1047,11 +1047,32 @@ function renderSidebar() {
     <div class="filter-list">${techItems || '<div class="filter-item" style="color:var(--text-faint)">none</div>'}</div>
     <h3>View</h3>
     <div class="filter-list">
-      <div class="filter-item ${f.include_archived ? 'active' : ''}" onclick="setFilter('include_archived', ${!f.include_archived})">
+      <div class="filter-item ${f.include_archived ? 'active' : ''}" data-filter="archived">
         <span>show archived</span>
       </div>
     </div>
   `;
+
+  sidebar.querySelectorAll('[data-filter]').forEach(el => {
+    el.onclick = () => handleSidebarClick(el.dataset.filter, el.dataset.value);
+  });
+}
+
+function handleSidebarClick(kind, value) {
+  const f = state.filters;
+  if (kind === 'year') {
+    const v = parseInt(value);
+    setFilter('year', f.year == v ? null : v);
+  } else if (kind === 'languages') {
+    toggleArrayFilter('languages', value);
+  } else if (kind === 'clear-languages') {
+    state.filters.languages = [];
+    loadProjects();
+  } else if (kind === 'archived') {
+    setFilter('include_archived', !f.include_archived);
+  } else if (kind === 'category' || kind === 'status' || kind === 'tech') {
+    setFilter(kind, f[kind] === value ? null : value);
+  }
 }
 
 function setFilter(key, value) {
@@ -1221,8 +1242,10 @@ function renderDetail() {
                 ? `<span class="tag" style="border-color:var(--accent);color:var(--accent);">in vault</span>`
                 : '')}
           <button class="btn" onclick="window.location='/api/projects/${p.id}/export'">Export ZIP</button>
-          <button class="btn" onclick="archiveProject(${p.id})" style="margin-left:auto;color:var(--accent)">Archive</button>
+          <button class="btn" onclick="archiveProject(${p.id})" style="margin-left:auto">Archive</button>
+          <button class="btn" onclick='permanentDelete(${p.id}, ${JSON.stringify(p.title).replace(/'/g, "\\'")})' style="background:var(--accent);border-color:var(--accent);color:white">Delete forever</button>
         </div>
+        <div class="field-hint" style="margin-top:8px">Archive = hide from default view (reversible). Delete forever = remove DB record + all files in Vault + thumbnails (irreversible).</div>
       </div>
     </div>
   `;
@@ -1254,6 +1277,19 @@ async function togglePin(id) {
     await api(`/api/projects/${id}`, { method: 'PATCH', body: { is_pinned: !state.detailProject.is_pinned } });
     loadProject(id);
   } catch (e) { toast(e.message, 'error'); }
+}
+
+async function permanentDelete(id, title) {
+  if (!confirm(`Permanently delete "${title}"?\n\nWill remove:\n  • DB record\n  • All files in Vault (~/.vault/projects/${id}/)\n  • Cover image and screenshots\n\nThis CANNOT be undone.`)) return;
+  if (!confirm(`Last chance — really delete "${title}" forever?`)) return;
+  try {
+    await api(`/api/projects/${id}/permanent`, { method: 'DELETE' });
+    toast('Deleted forever', 'success');
+    state.view = 'grid';
+    loadProjects();
+  } catch (e) {
+    toast(`Delete failed: ${e.message}`, 'error');
+  }
 }
 
 async function moveToVault(id) {
@@ -1359,12 +1395,13 @@ function renderProjectForm(project) {
           </div>
 
           <div class="field field-full">
-            <label>Upload project files (copies into Vault — original folder can be deleted afterwards)</label>
+            <label>Upload project files into Vault — pick a folder, or drag-drop a .zip / .rar</label>
             <div class="dropzone" id="folder-drop" style="text-align:left;padding:18px 20px;">
               <input type="file" id="folder-picker" webkitdirectory directory multiple style="display:none">
               <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <button class="btn" type="button" onclick="document.getElementById('folder-picker').click()">📁 Select folder</button>
-                <span id="upload-summary" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);">no folder selected</span>
+                <span style="color:var(--text-faint);font-size:11px;font-family:var(--mono)">or drop .zip / .rar here</span>
+                <span id="upload-summary" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-left:auto;">no folder selected — or drop a .zip / .rar here</span>
               </div>
               <label style="display:flex;gap:6px;align-items:center;margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--text-dim);cursor:pointer;">
                 <input type="checkbox" id="exclude-build" checked>
@@ -1536,17 +1573,26 @@ function renderProjectForm(project) {
     refreshScreensPreview();
   });
 
-  // wire folder upload picker
+  // wire folder upload picker + zip/rar drag-drop
   let pendingFolderFiles = [];
+  let pendingArchive = null;
   const EXCLUDE_DIRS = ['node_modules', '.git', 'Library', 'Temp', 'obj', 'bin', 'build', 'dist', '.next', '.cache', '__pycache__', '.venv', 'venv', '.idea', '.vscode', 'Logs'];
   const folderPicker = document.getElementById('folder-picker');
+  const folderDrop = document.getElementById('folder-drop');
   const uploadSummary = document.getElementById('upload-summary');
   const excludeCheckbox = document.getElementById('exclude-build');
 
   function refreshUploadSummary(filesArray) {
     if (!uploadSummary) return;
+    if (pendingArchive) {
+      const mb = (pendingArchive.size / 1024 / 1024).toFixed(1);
+      uploadSummary.innerHTML = `📦 <strong>${escapeHtml(pendingArchive.name)}</strong> — ${mb} MB (will be extracted) <a style="color:var(--accent);margin-left:8px;cursor:pointer" data-clear-archive>clear</a>`;
+      const clr = uploadSummary.querySelector('[data-clear-archive]');
+      if (clr) clr.onclick = () => { pendingArchive = null; refreshUploadSummary(pendingFolderFiles); };
+      return;
+    }
     if (!filesArray || filesArray.length === 0) {
-      uploadSummary.textContent = 'no folder selected';
+      uploadSummary.textContent = 'no folder selected — or drop a .zip / .rar here';
       return;
     }
     const totalBytes = filesArray.reduce((s, f) => s + f.size, 0);
@@ -1556,6 +1602,7 @@ function renderProjectForm(project) {
   }
 
   function rebuildPendingFiles() {
+    pendingArchive = null;
     if (!folderPicker.files || !folderPicker.files.length) {
       pendingFolderFiles = [];
       refreshUploadSummary([]);
@@ -1575,9 +1622,32 @@ function renderProjectForm(project) {
   if (folderPicker) folderPicker.onchange = rebuildPendingFiles;
   if (excludeCheckbox) excludeCheckbox.onchange = rebuildPendingFiles;
 
+  if (folderDrop) {
+    folderDrop.ondragover = (e) => { e.preventDefault(); folderDrop.classList.add('dragover'); };
+    folderDrop.ondragleave = () => folderDrop.classList.remove('dragover');
+    folderDrop.ondrop = (e) => {
+      e.preventDefault();
+      folderDrop.classList.remove('dragover');
+      const dropped = Array.from(e.dataTransfer.files || []);
+      if (!dropped.length) return;
+      // single archive file?
+      if (dropped.length === 1 && /\.(zip|rar)$/i.test(dropped[0].name)) {
+        pendingArchive = dropped[0];
+        pendingFolderFiles = [];
+        refreshUploadSummary([]);
+        return;
+      }
+      // otherwise: looks like a multi-file drop. Browsers don't expose folder
+      // structure on drag-drop reliably; tell the user to use Select folder
+      // for folders, or drop a single .zip/.rar instead.
+      toast('For folders, click "Select folder". For archives, drop a single .zip or .rar file.', 'error');
+    };
+  }
+
   // expose form data for save
   window._formCtx = {
     getPendingFiles: () => pendingFolderFiles,
+    getPendingArchive: () => pendingArchive,
     getData: () => ({
       title: document.getElementById('f-title').value.trim(),
       year: parseInt(document.getElementById('f-year').value) || null,
@@ -1629,6 +1699,7 @@ async function saveProject(id) {
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Saving…';
   const pendingFiles = window._formCtx.getPendingFiles ? window._formCtx.getPendingFiles() : [];
+  const pendingArchive = window._formCtx.getPendingArchive ? window._formCtx.getPendingArchive() : null;
 
   try {
     let projectId = id;
@@ -1639,7 +1710,22 @@ async function saveProject(id) {
       projectId = created.id;
     }
 
-    if (pendingFiles && pendingFiles.length) {
+    if (pendingArchive) {
+      btn.textContent = 'Uploading archive…';
+      const result = await uploadArchive(projectId, pendingArchive, (loaded, total) => {
+        if (total) {
+          const pct = ((loaded / total) * 100).toFixed(0);
+          const bar = document.getElementById('upload-bar');
+          const stat = document.getElementById('upload-status');
+          const box = document.getElementById('upload-progress');
+          if (box) box.style.display = 'block';
+          if (bar) bar.style.width = pct + '%';
+          if (stat) stat.textContent = `uploading archive · ${pct}%`;
+        }
+      });
+      const mb = (result.bytes / 1024 / 1024).toFixed(1);
+      toast(`Extracted ${result.saved} files (${mb} MB) into Vault`, 'success');
+    } else if (pendingFiles && pendingFiles.length) {
       btn.textContent = 'Uploading files…';
       await uploadFolderInBatches(projectId, pendingFiles);
       toast(`Uploaded ${pendingFiles.length} files into Vault`, 'success');
@@ -1653,6 +1739,27 @@ async function saveProject(id) {
     toast(`Save failed: ${e.message}`, 'error');
     btn.disabled = false; btn.textContent = id ? 'Save' : 'Create';
   }
+}
+
+function uploadArchive(projectId, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append('archive', file);
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded, e.total); };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); } catch (e) { resolve({}); }
+      } else {
+        let msg = `HTTP ${xhr.status}`;
+        try { msg = JSON.parse(xhr.responseText).detail || msg; } catch (e) {}
+        reject(new Error(msg));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during archive upload'));
+    xhr.open('POST', `/api/projects/${projectId}/upload-archive`);
+    xhr.send(fd);
+  });
 }
 
 async function uploadFolderInBatches(projectId, files) {
